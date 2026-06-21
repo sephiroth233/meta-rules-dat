@@ -49,6 +49,12 @@ jobs:
           repository: MetaCubeX/meta-rules-converter
           path: convert
 
+      - name: Checkout sephiroth233/Tool
+        uses: actions/checkout@v4
+        with:
+          repository: sephiroth233/Tool
+          path: Tool
+
       - name: Checkout cokebar/gfwlist2dnsmasq
         uses: actions/checkout@v4
         with:
@@ -156,6 +162,33 @@ jobs:
           curl -sSL https://gitea.com/XIU2/TrackersListCollection/raw/branch/master/all.txt | grep -i "\.[A-Z]" | grep -v tracker | sed 's/^.*\/\///g' | sed 's/:.*\/.*//g' >> ./community/data/tracker
           curl -sSL https://github.com/blackmatrix7/ios_rule_script/raw/master/rule/Clash/BlockHttpDNS/BlockHttpDNS.list | ${{ env.SED }} > ./community/data/httpdns
           echo "zed.dev" >> ./community/data/category-dev
+
+      - name: Merge Tool rules into geosite data
+        run: |
+          merge_tool_rule() {
+            local src="$1"
+            local dst="$2"
+
+            awk -F, '
+              BEGIN { IGNORECASE = 1 }
+              /^[[:space:]]*($|#|;)/ { next }
+              {
+                gsub(/\r/, "")
+                type = toupper($1)
+                value = $2
+                sub(/^[[:space:]]+/, "", value)
+                sub(/[[:space:]]+$/, "", value)
+              }
+              type == "DOMAIN" && value != "" { print "full:" tolower(value); next }
+              type == "DOMAIN-SUFFIX" && value != "" { print tolower(value); next }
+              type == "DOMAIN-KEYWORD" && value != "" { print "keyword:" tolower(value); next }
+            ' "$src" \
+              | grep -viE 'this_ruleset_is_made_by_sukkaw|7h1s_rul35et' \
+              >> "$dst"
+          }
+
+          merge_tool_rule "./Tool/mihomo/Rules/AI.list" "./community/data/ai"
+          merge_tool_rule "./Tool/mihomo/Rules/Emby.list" "./community/data/emby"
 
       - name: Build geosite.dat file
         run: |
